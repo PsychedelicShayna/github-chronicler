@@ -1,25 +1,6 @@
 use anyhow as ah;
 use minreq::{self, get, Request, Response};
 
-// Will be moved to main.rs
-macro_rules! typedef {
-    ($name:ident, $type:ty) => {
-        #[derive(Debug, Clone)]
-        struct $name($type);
-        impl From<$type> for $name {
-            fn from(value: $type) -> Self {
-                $name(value)
-            }
-        }
-
-        impl From<$name> for $type {
-            fn from(value: $name) -> Self {
-                value.0
-            }
-        }
-    };
-}
-
 const API_BASE: &'static str = "https://api.github.com";
 
 typedef!(AuthToken, String);
