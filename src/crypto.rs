@@ -12,14 +12,11 @@ use rand::{rngs::StdRng, RngCore, SeedableRng};
 use sha2::{Digest, Sha256};
 
 use anyhow as ah;
-use anyhow::{anyhow, bail, ensure, Result as AnyResult};
+use anyhow::{anyhow, bail};
 
-// Into<anyhow::Error>` [E05
-// anyhow::kind::TraitKind`
-// std::fmt::Display` [E0599
 enum Pkcs7Error {
     Pkcs7DrainedBytesMismatch {
-        drained_bytes: Vec<u8>
+        drained_bytes: Vec<u8>,
     },
     Pkcs7PaddingSumMismatch {
         data_length: usize,
@@ -47,7 +44,7 @@ impl std::error::Error for Pkcs7Error {
 }
 
 impl std::fmt::Debug for Pkcs7Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // match self {
         //     // Pkcs7Error::Pkcs7DrainedBytesMismatch => todo!(),
         //     // Pkcs7Error::Pkcs7PaddingSumMismatch => todo!(),
@@ -59,7 +56,7 @@ impl std::fmt::Debug for Pkcs7Error {
     }
 }
 impl std::fmt::Display for Pkcs7Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -93,7 +90,7 @@ pub fn pkcs7_strip(data_bytes: &mut Vec<u8>) -> ah::Result<usize> {
         padding_length = last as usize;
 
         let original_data_length = data_length - padding_length;
-        let original_data_modulo = original_data_length % padding_length;
+        let _original_data_modulo = original_data_length % padding_length;
 
         if padding_length == 0 || padding_length >= data_length {
             bail!(Pkcs7Error::Pkcs7InvalidPaddingLength {
@@ -105,13 +102,14 @@ pub fn pkcs7_strip(data_bytes: &mut Vec<u8>) -> ah::Result<usize> {
         let padding_start = data_length - padding_length;
 
         let padding_sum = (padding_start..data_length).fold(0, |acc, i| {
-            (usize::from(data_bytes[i]) == padding_length)
-                .then_some(acc + 1)
-                .unwrap_or(acc)
+            if usize::from(data_bytes[i]) == padding_length {
+                acc + 1
+            } else {
+                acc
+            }
         });
 
         if padding_sum != padding_length {
-
             bail!(Pkcs7Error::Pkcs7PaddingSumMismatch {
                 data_length,
                 padding_length,
@@ -122,7 +120,9 @@ pub fn pkcs7_strip(data_bytes: &mut Vec<u8>) -> ah::Result<usize> {
         let mut drained = data_bytes.drain(padding_start..data_length);
 
         if drained.len() != padding_length || drained.any(|b| b != last) {
-            bail!(Pkcs7Error::Pkcs7DrainedBytesMismatch {drained_bytes: drained.collect()});
+            bail!(Pkcs7Error::Pkcs7DrainedBytesMismatch {
+                drained_bytes: drained.collect()
+            });
         }
     }
 
@@ -148,19 +148,19 @@ pub fn derive_key(data: &Vec<u8>) -> ah::Result<[u8; 32]> {
         }
     }
 
-    return Ok(buffer);
+    Ok(buffer)
 }
 
 pub fn get_sha256_digest(data: &Vec<u8>) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(data.as_slice());
     let hash: GenericArray<u8, U32> = hasher.finalize();
-    return hash.to_vec();
+    hash.to_vec()
 }
 
 pub fn encrypt(plaintext: &Vec<u8>, key: &[u8; 32]) -> ah::Result<Vec<u8>> {
     let mut in_data: Vec<u8> = random_block().to_vec();
-    in_data.append(&mut get_sha256_digest(&plaintext));
+    in_data.append(&mut get_sha256_digest(plaintext));
     in_data.append(&mut plaintext.clone());
 
     let iv: [u8; 16] = random_block();
@@ -173,7 +173,7 @@ pub fn encrypt(plaintext: &Vec<u8>, key: &[u8; 32]) -> ah::Result<Vec<u8>> {
 
     let ciphertext = encryptor.encrypt_padded_mut::<Pkcs7>(cipher_buf.as_mut_slice(), in_length)?;
 
-    return Ok(ciphertext.to_vec());
+    Ok(ciphertext.to_vec())
 }
 
 pub fn decrypt(ciphertext: &Vec<u8>, key: &[u8; 32]) -> ah::Result<Vec<u8>> {
