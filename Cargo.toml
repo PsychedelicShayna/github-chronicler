@@ -9,3 +9,9 @@ edition = "2021"
 minreq = { version = "2.11.0", features = ["https"] }
 jzon = { version="0.12.5" } 
 aes = { version = "0.8.3" }
+cbc = {version = "0.1.2", features = ["alloc", "std"] }
+rand = "0.8.5"
+anyhow = "1.0.75"
+rust-argon2 = "1.0.0"
+sha2 = "0.10.7"
+
