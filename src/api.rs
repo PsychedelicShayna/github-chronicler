@@ -3,10 +3,10 @@ use minreq::{self, get, Request, Response};
 
 const API_BASE: &'static str = "https://api.github.com";
 
-typedef!(AuthToken, String);
-typedef!(EndpointURL, String);
-typedef!(EndpointTemplate, String);
-typedef!(URL, String);
+typedef!(pub, AuthToken, String);
+typedef!(pub, EndpointURL, String);
+typedef!(pub, EndpointTemplate, String);
+typedef!(pub, URL, String);
 
 impl From<&str> for EndpointURL {
     fn from(value: &str) -> Self {
@@ -26,12 +26,15 @@ impl From<&str> for URL {
     }
 }
 
-trait Endpoint
+pub trait Endpoint
 where
     Self: Into<EndpointTemplate>,
 {
-    fn fill<F: FnOnce(EndpointTemplate) -> EndpointURL>(&self, func: F) -> EndpointURL;
-    fn send(&self, eurl: EndpointURL) -> ah::Result<Response>;
+    fn send<F: FnOnce(EndpointTemplate) -> EndpointURL>(
+        &self,
+        token: AuthToken,
+        func: F,
+    ) -> ah::Result<Response>;
 }
 
 #[derive(Debug, Clone)]
@@ -42,32 +45,37 @@ pub enum RepoTraffic {
     Views,
 }
 
-impl From<&RepoTraffic> for EndpointTemplate {
-    fn from(value: &RepoTraffic) -> Self {
+impl From<RepoTraffic> for EndpointTemplate {
+    fn from(value: RepoTraffic) -> Self {
         match value {
-            RepoTraffic::Clones => format!("{}/repos/{}/{}/traffic/clones", API_BASE, "{}", "{}"),
-            RepoTraffic::Views => format!("{}/repos/{}/{}/traffic/views", API_BASE, "{}", "{}"),
+            RepoTraffic::Clones => {
+                format!("{}/repos/{}/{}/traffic/clones", API_BASE, "!$1!", "!$2!")
+            }
+            RepoTraffic::Views => format!("{}/repos/{}/{}/traffic/views", API_BASE, "!$1!", "!$2!"),
             RepoTraffic::ReferredPaths => {
-                format!("{}/repos/{}/{}/traffic/popular/paths", API_BASE, "{}", "{}")
+                format!(
+                    "{}/repos/{}/{}/traffic/popular/paths",
+                    API_BASE, "!$1!", "!$2!"
+                )
             }
             RepoTraffic::RefferalSources => format!(
                 "{}/repos/{}/{}/traffic/popular/referrers",
-                API_BASE, "{}", "{}"
+                API_BASE, "!$1!", "!$2!"
             ),
         }
         .into()
     }
 }
 
-impl Endpoint for &RepoTraffic {
-    fn send(&self, endpoint_url: EndpointURL) -> ah::Result<Response> {
-        let token = AuthToken(String::default());
+impl Endpoint for RepoTraffic {
+    fn send<F: FnOnce(EndpointTemplate) -> EndpointURL>(
+        &self,
+        token: AuthToken,
+        func: F,
+    ) -> ah::Result<Response> {
+        let template: EndpointTemplate = EndpointTemplate::from(self.clone());
+        let endpoint_url = func(template);
         Ok(create_request(endpoint_url, token).send()?)
-    }
-
-    fn fill<F: FnOnce(EndpointTemplate) -> EndpointURL>(&self, func: F) -> EndpointURL {
-        let template: EndpointTemplate = EndpointTemplate::from(*self);
-        func(template)
     }
 }
 
