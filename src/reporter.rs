@@ -12,9 +12,9 @@ pub fn get_unix_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("SystemTime before Unix epoch!");
 
-    let unix_timestamp = duration_since_epoch.as_secs();
+    
 
-    unix_timestamp
+    duration_since_epoch.as_secs()
 }
 
 pub struct ReportData {
@@ -85,11 +85,10 @@ pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> 
 
         let old_entry = timeline
             .metric_timeline
-            .get(&timeline.newest_metric)
-            .clone();
+            .get(&timeline.newest_metric);
 
         let time_now = unix_timestamp;
-        let time_old = timeline.newest_metric.clone();
+        let time_old = timeline.newest_metric;
 
         let time_delta = old_entry.map_or(0, |e| time_now - e.time_now);
 
@@ -132,11 +131,10 @@ pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> 
 
         let old_entry = timeline
             .metric_timeline
-            .get(&timeline.newest_metric)
-            .clone();
+            .get(&timeline.newest_metric);
 
         let time_now = unix_timestamp;
-        let time_old = timeline.newest_metric.clone();
+        let time_old = timeline.newest_metric;
         let time_delta = old_entry.map_or(0, |e| time_now - e.time_now);
 
         let timeline_entry = TimelineEntry {
@@ -301,8 +299,8 @@ pub fn create_new_report(report_data: ReportData) -> Report {
             });
 
         let timeline_entry = TimelineEntry {
-            time_now: unix_timestamp.clone(),
-            time_old: unix_timestamp.clone(),
+            time_now: unix_timestamp,
+            time_old: unix_timestamp,
             time_delta: 0,
             new_unique: unique_referrals,
             new: new_referrals,
@@ -334,8 +332,8 @@ pub fn create_new_report(report_data: ReportData) -> Report {
         });
 
         let timeline_entry = TimelineEntry {
-            time_now: unix_timestamp.clone(),
-            time_old: unix_timestamp.clone(),
+            time_now: unix_timestamp,
+            time_old: unix_timestamp,
             time_delta: 0,
             new_unique: unique_views,
             new: new_views,

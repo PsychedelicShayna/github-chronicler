@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 
 use crate::api_models::*;
 
-const API_BASE: &'static str = "https://api.github.com";
+const API_BASE: &str = "https://api.github.com";
 
 typedef!(pub, AuthToken, String);
 typedef!(pub, EndpointURL, String);
@@ -25,10 +25,10 @@ fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> 
         200 => {
             let content = response.as_str()?.to_string();
             let deserialized: T = sj::from_str::<T>(&content).map_err(|e| ah::anyhow!(e))?;
-            return Ok(deserialized);
+            Ok(deserialized)
         }
         code => {
-            return Err(ah::anyhow!(
+            Err(ah::anyhow!(
                 "Request failed with status code {}, {}",
                 code,
                 response.reason_phrase
