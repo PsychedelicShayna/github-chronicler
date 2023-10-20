@@ -1,5 +1,3 @@
-use api::Endpoint;
-
 macro_rules! typedef {
     ($name:ident, $type:ty) => {
         #[derive(Debug, Clone)]
@@ -38,49 +36,36 @@ macro_rules! typedef {
 
 mod api;
 mod api_models;
-mod server;
-
-const STOKENN: &'static str = "!$1!";
-const STOKENR: &'static str = "!$2!";
+mod report_models;
+mod reporter;
 
 use api::*;
-use api_models::*;
-use std::io::{BufReader, BufWriter, Read, Write};
+use reporter::*;
+
+use anyhow as ah;
+
+use std::io::Read;
 
 fn read_token(file: String) -> AuthToken {
     let mut file = std::fs::OpenOptions::new().read(true).open(file).unwrap();
-
     let mut str: String = String::new();
     file.read_to_string(&mut str).unwrap();
 
-    return AuthToken(str);
+    AuthToken(str)
 }
 
-fn main() {
-    let endpoint = api::RepoTraffic::Views;
+fn main() -> ah::Result<()> {
+    let token = read_token("./auth".into());
+    let author: String = "PsychedelicShayna".into();
+    let repo: String = "cursor-locker".into();
 
-    let t = read_token("./auth".into());
-    println!("Token: {}", t.0);
+    let report_data = request_report_data(&token, &author, &repo)?;
+    let report = create_new_report(report_data);
 
-    let response = endpoint.send(t, |templ| {
-        let mut s = String::from(templ);
-        s = s.replace(STOKENN, "PsychedelicShayna");
-        s = s.replace(STOKENR, "cursor-locker");
-        EndpointURL::from(s)
-    });
+    let report_file: String = format!("{}.{}.report.json", author, repo);
+    println!("{:?}", report);
 
-    match response {
-        Ok(r) => {
-            let code = r.status_code;
-            let content = r.as_str().unwrap().to_string();
-            println!("Response {}\n,Content:\n{}", code, content);
-            let dds: ModelRepoViewsDaily = serde_json::from_str(content.as_str()).unwrap();
-            println!("{:?}", dds);
-        }
+    save_report_file(report, &report_file)?;
 
-        Err(e) => {
-            eprintln!("{:?}", e);
-            panic!()
-        }
-    }
+    Ok(())
 }
