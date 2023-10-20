@@ -1,5 +1,8 @@
 use anyhow as ah;
-use minreq::{self, get, Request, Response};
+use minreq::get;
+use serde::de::DeserializeOwned;
+
+use crate::api_models::*;
 
 const API_BASE: &'static str = "https://api.github.com";
 
@@ -8,81 +11,73 @@ typedef!(pub, EndpointURL, String);
 typedef!(pub, EndpointTemplate, String);
 typedef!(pub, URL, String);
 
-impl From<&str> for EndpointURL {
-    fn from(value: &str) -> Self {
-        EndpointURL(value.into())
-    }
-}
-
-impl From<&str> for EndpointTemplate {
-    fn from(value: &str) -> Self {
-        EndpointTemplate(value.into())
-    }
-}
-
-impl From<&str> for URL {
-    fn from(value: &str) -> Self {
-        URL(value.into())
-    }
-}
-
-pub trait Endpoint
-where
-    Self: Into<EndpointTemplate>,
-{
-    fn send<F: FnOnce(EndpointTemplate) -> EndpointURL>(
-        &self,
-        token: AuthToken,
-        func: F,
-    ) -> ah::Result<Response>;
-}
-
-#[derive(Debug, Clone)]
-pub enum RepoTraffic {
-    Clones,
-    ReferredPaths,
-    RefferalSources,
-    Views,
-}
-
-impl From<RepoTraffic> for EndpointTemplate {
-    fn from(value: RepoTraffic) -> Self {
-        match value {
-            RepoTraffic::Clones => {
-                format!("{}/repos/{}/{}/traffic/clones", API_BASE, "!$1!", "!$2!")
-            }
-            RepoTraffic::Views => format!("{}/repos/{}/{}/traffic/views", API_BASE, "!$1!", "!$2!"),
-            RepoTraffic::ReferredPaths => {
-                format!(
-                    "{}/repos/{}/{}/traffic/popular/paths",
-                    API_BASE, "!$1!", "!$2!"
-                )
-            }
-            RepoTraffic::RefferalSources => format!(
-                "{}/repos/{}/{}/traffic/popular/referrers",
-                API_BASE, "!$1!", "!$2!"
-            ),
-        }
-        .into()
-    }
-}
-
-impl Endpoint for RepoTraffic {
-    fn send<F: FnOnce(EndpointTemplate) -> EndpointURL>(
-        &self,
-        token: AuthToken,
-        func: F,
-    ) -> ah::Result<Response> {
-        let template: EndpointTemplate = EndpointTemplate::from(self.clone());
-        let endpoint_url = func(template);
-        Ok(create_request(endpoint_url, token).send()?)
-    }
-}
-
-fn create_request(url: EndpointURL, token: AuthToken) -> Request {
-    get(url.0)
+fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> ah::Result<T> {
+    let response = get(url)
         .with_header("Accept", "application/vnd.github+json")
         .with_header("Authorization", format!("Bearer {}", token.0))
         .with_header("X-GitHub-Api-Version", "2022-11-28")
         .with_header("User-Agent", "Awesome-Octocat-App")
+        .send()?;
+
+    let status_code: &i32 = &response.status_code;
+
+    match status_code {
+        200 => {
+            let content = response.as_str()?.to_string();
+            let deserialized: T = sj::from_str::<T>(&content).map_err(|e| ah::anyhow!(e))?;
+            return Ok(deserialized);
+        }
+        code => {
+            return Err(ah::anyhow!(
+                "Request failed with status code {}, {}",
+                code,
+                response.reason_phrase
+            ))
+        }
+    }
 }
+
+macro_rules! define_request_fn {
+    ($name:ident, $type:ty, $endpoint:expr) => {
+        pub fn $name(token: &AuthToken, author: &String, repo: &String) -> ah::Result<$type> {
+            let endpoint = format!($endpoint, API_BASE, author, repo);
+            attempt_api_request(token, &endpoint)
+        }
+    };
+}
+
+define_request_fn!(
+    request_clones_daily,
+    ModelRepoClonesDaily,
+    "{}/repos/{}/{}/traffic/clones?per=day"
+);
+
+define_request_fn!(
+    request_clones_weekly,
+    ModelRepoClonesBiWeekly,
+    "{}/repos/{}/{}/traffic/clones?per=week"
+);
+
+define_request_fn!(
+    request_views_daily,
+    ModelRepoViewsDaily,
+    "{}/repos/{}/{}/traffic/views?per=day"
+);
+
+define_request_fn!(
+    request_views_weekly,
+    ModelRepoViewsBiWeekly,
+    "{}/repos/{}/{}/traffic/views?per=week"
+);
+
+define_request_fn!(
+    request_referrers_weekly,
+    ModelReferrers,
+    "{}/repos/{}/{}/traffic/popular/referrers"
+);
+
+define_request_fn!(
+    request_popular_paths_weekly,
+    ModelContentTrafficBiWeekly,
+    "{}/repos/{}/{}/traffic/popular/paths"
+);
