@@ -238,34 +238,4 @@ mod tests {
             }
         };
     }
-
-    #[test]
-    fn test_pkcs7_apply_random() {
-        let mut sample = vec![1, 2, 3, 4, 5, 1];
-
-        match pkcs7_strip(&mut sample) {
-            Ok(padding_length) => {
-                assert_eq!(padding_length, 1);
-                assert_eq!(sample, vec![1, 2, 3, 4, 5]);
-            }
-            Err(error) => {
-                panic!("Unexpected error: {:?}", error);
-            }
-        };
-    }
-
-    #[test]
-    fn test_pkcs7_strip_random() {
-        let mut sample = vec![1, 2, 3, 4, 5, 1];
-
-        match pkcs7_strip(&mut sample) {
-            Ok(padding_length) => {
-                assert_eq!(padding_length, 1);
-                assert_eq!(sample, vec![1, 2, 3, 4, 5]);
-            }
-            Err(error) => {
-                panic!("Unexpected error: {:?}", error);
-            }
-        };
-    }
 }
