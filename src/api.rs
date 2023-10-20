@@ -12,14 +12,23 @@ typedef!(pub, EndpointTemplate, String);
 typedef!(pub, URL, String);
 
 fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> ah::Result<T> {
-    let response = get(url)
+    let request = get(url)
+        .with_header("User-Agent", "PsychedelicShayna")
         .with_header("Accept", "application/vnd.github+json")
         .with_header("Authorization", format!("Bearer {}", token.0))
         .with_header("X-GitHub-Api-Version", "2022-11-28")
-        .with_header("User-Agent", "Awesome-Octocat-App")
-        .send()?;
+        .with_timeout(2048);
+
+    println!("Using token: {}", token.0);
+    println!("Sending request {:?}", request);
+
+    let response = request.send()?;
+
+    println!("Received response {:?}", response);
 
     let status_code: &i32 = &response.status_code;
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     match status_code {
         200 => {
@@ -27,13 +36,13 @@ fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> 
             let deserialized: T = sj::from_str::<T>(&content).map_err(|e| ah::anyhow!(e))?;
             Ok(deserialized)
         }
-        code => {
-            Err(ah::anyhow!(
-                "Request failed with status code {}, {}",
-                code,
-                response.reason_phrase
-            ))
-        }
+        code => Err(ah::anyhow!(
+            "GET: {}\nResponse: Request failed with status code {}, {}, {:?}",
+            url,
+            code,
+            response.reason_phrase,
+            response.as_str()?
+        )),
     }
 }
 

@@ -40,7 +40,7 @@ pub type ModelReferrers = Vec<ModelReferrer>;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ModelContentTraffic {
-    pub paths: String,
+    pub path: String,
     pub title: String,
     pub count: u64,
     pub uniques: u64,

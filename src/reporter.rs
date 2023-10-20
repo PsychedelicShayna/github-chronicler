@@ -12,8 +12,6 @@ pub fn get_unix_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("SystemTime before Unix epoch!");
 
-    
-
     duration_since_epoch.as_secs()
 }
 
@@ -31,13 +29,31 @@ pub fn request_report_data(
     author: &String,
     repo: &String,
 ) -> ah::Result<ReportData> {
+    let biweekly_views = request_views_weekly(token, author, repo)?;
+    println!("Biweekly Views: {:?}", biweekly_views);
+
+    let biweekly_clones = request_clones_weekly(token, author, repo)?;
+    println!("biweekly_clones: {:?}", biweekly_clones);
+
+    let daily_views = request_views_daily(token, author, repo)?;
+    println!("daily_views: {:?}", daily_views);
+
+    let daily_clones = request_clones_daily(token, author, repo)?;
+    println!("daily_clones: {:?}", daily_clones);
+
+    let referrals = request_referrers_weekly(token, author, repo)?;
+    println!("referrals: {:?}", referrals);
+
+    let popular = request_popular_paths_weekly(token, author, repo)?;
+    println!("popular: {:?}", popular);
+
     Ok(ReportData {
-        biweekly_views: request_views_weekly(token, author, repo)?,
-        biweekly_clones: request_clones_weekly(token, author, repo)?,
-        daily_views: request_views_daily(token, author, repo)?,
-        daily_clones: request_clones_daily(token, author, repo)?,
-        referrals: request_referrers_weekly(token, author, repo)?,
-        popular: request_popular_paths_weekly(token, author, repo)?,
+        biweekly_views,
+        biweekly_clones,
+        daily_views,
+        daily_clones,
+        referrals,
+        popular,
     })
 }
 
@@ -83,9 +99,7 @@ pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> 
                 metric_timeline: Map::new(),
             });
 
-        let old_entry = timeline
-            .metric_timeline
-            .get(&timeline.newest_metric);
+        let old_entry = timeline.metric_timeline.get(&timeline.newest_metric);
 
         let time_now = unix_timestamp;
         let time_old = timeline.newest_metric;
@@ -116,7 +130,7 @@ pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> 
     report.referrers = report.referrer_timelines.len() as u64;
 
     for content_path in &new_data.popular {
-        let path = &content_path.paths;
+        let path = &content_path.path;
         let new_views = content_path.count;
         let unique_views = content_path.uniques;
 
@@ -129,9 +143,7 @@ pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> 
                 metric_timeline: Map::new(),
             });
 
-        let old_entry = timeline
-            .metric_timeline
-            .get(&timeline.newest_metric);
+        let old_entry = timeline.metric_timeline.get(&timeline.newest_metric);
 
         let time_now = unix_timestamp;
         let time_old = timeline.newest_metric;
@@ -319,7 +331,7 @@ pub fn create_new_report(report_data: ReportData) -> Report {
     report.referrers = report.referrer_timelines.len() as u64;
 
     for content_path in report_data.popular {
-        let path = content_path.paths;
+        let path = content_path.path;
         let new_views = content_path.count;
         let unique_views = content_path.uniques;
 
