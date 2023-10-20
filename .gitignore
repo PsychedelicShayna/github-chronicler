@@ -1,1 +1,10 @@
 /target
+/.*
+!.gitignore
+*.secret
+*.bak
+*.temp
+*.tmp
+*.json
+*.log
+
