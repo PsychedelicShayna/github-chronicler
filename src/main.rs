@@ -46,26 +46,36 @@ use anyhow as ah;
 
 use std::io::Read;
 
-fn read_token(file: String) -> AuthToken {
-    let mut file = std::fs::OpenOptions::new().read(true).open(file).unwrap();
-    let mut str: String = String::new();
-    file.read_to_string(&mut str).unwrap();
+const AUTH_FILE: &str = "./auth.secret";
 
-    AuthToken(str)
+fn read_token(file: String) -> ah::Result<AuthToken> {
+    let mut file = std::fs::OpenOptions::new().read(true).open(file)?;
+
+    let mut str: String = String::new();
+    file.read_to_string(&mut str)?;
+
+    Ok(AuthToken(str.trim().to_string()))
 }
 
 fn main() -> ah::Result<()> {
-    let token = read_token("./auth".into());
+    let auth_token = read_token(AUTH_FILE.into())?;
+
     let author: String = "PsychedelicShayna".into();
     let repo: String = "cursor-locker".into();
 
-    let report_data = request_report_data(&token, &author, &repo)?;
-    let report = create_new_report(report_data);
+    let report_data = request_report_data(&auth_token, &author, &repo)?;
+    let file_path: String = format!("{}.{}.report.json", author, repo);
 
-    let report_file: String = format!("{}.{}.report.json", author, repo);
-    println!("{:?}", report);
+    if !std::path::Path::new(file_path.as_str()).exists() {
+        let new_report = generate_new_report(report_data);
+        save_report_file(new_report, &file_path)?;
+        return Ok(());
+    }
 
-    save_report_file(report, &report_file)?;
+    let old_report = load_report_file(&file_path)?;
+    let updated_report = update_existing_report(old_report.clone(), &report_data)?;
+
+    save_report_file(updated_report, &file_path)?;
 
     Ok(())
 }
