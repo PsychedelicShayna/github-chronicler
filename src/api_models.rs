@@ -36,7 +36,7 @@ pub struct ModelReferrer {
     pub uniques: u64,
 }
 
-pub type ModelReferrers = Vec<ModelReferrer>;
+pub type ModelReferrerals = Vec<ModelReferrer>;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ModelContentTraffic {

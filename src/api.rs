@@ -28,7 +28,7 @@ fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> 
 
     let status_code: &i32 = &response.status_code;
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    std::thread::sleep(std::time::Duration::from_millis(128));
 
     match status_code {
         200 => {
@@ -81,7 +81,7 @@ define_request_fn!(
 
 define_request_fn!(
     request_referrers_weekly,
-    ModelReferrers,
+    ModelReferrerals,
     "{}/repos/{}/{}/traffic/popular/referrers"
 );
 
