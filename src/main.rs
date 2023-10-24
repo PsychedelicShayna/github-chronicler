@@ -35,6 +35,7 @@ macro_rules! typedef {
 }
 
 mod api;
+mod timecalc;
 mod api_models;
 mod report_models;
 mod reporter;
