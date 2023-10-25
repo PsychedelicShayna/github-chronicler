@@ -189,3 +189,21 @@ define_request_fn!(
     ModelContentTrafficBiWeekly,
     "{}/repos/{}/{}/traffic/popular/paths"
 );
+
+define_request_fn!(
+    request_stargazers,
+    ModelRepoStargazers,
+    "{}/repos/{}/{}/stargazers"
+);
+
+define_request_fn!(
+    request_forks,
+    ModelRepoForks,
+    "{}/repos/{}/{}/forks"
+);
+
+define_request_fn!(
+    request_watchers,
+    ModelRepoWatchers,
+    "{}/repos/{}/{}/subscribers"
+);
