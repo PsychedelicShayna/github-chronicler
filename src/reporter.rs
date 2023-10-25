@@ -15,6 +15,15 @@ pub fn get_unix_timestamp() -> u64 {
     duration_since_epoch.as_secs()
 }
 
+pub struct ReportData {
+    biweekly_v: ModelRepoViewsBiWeekly,
+    biweekly_c: ModelRepoClonesBiWeekly,
+    daily_v: ModelRepoViewsDaily,
+    daily_c: ModelRepoClonesDaily,
+    referrals: ModelReferrerals,
+    content_traffic: ModelContentTrafficBiWeekly,
+}
+
 pub fn request_report_data(
     token: &AuthToken,
     author: &String,
@@ -73,7 +82,235 @@ pub fn load_report_file(file_path: &String) -> ah::Result<Report> {
 }
 
 pub fn update_existing_report<'a>(mut report: Report, new_data: &ReportData) -> ah::Result<Report> {
-todo!()
+    let timestamp = get_unix_timestamp();
+
+    for referral in &new_data.referrals {
+        let referrer = &referral.referrer;
+
+        let timeline = report
+            .timelines_referrals
+            .entry(referrer.clone())
+            .or_insert(Timeline {
+                metrics_total: Metric { all: 0, unique: 0 },
+                latest_entry_timestamp: timestamp,
+                metric_timeline: Map::new(),
+            });
+
+        let previous_entry = timeline
+            .metric_timeline
+            .get(&timeline.latest_entry_timestamp);
+
+        let mut discard_entry: bool = false;
+
+        let mut views_a: u64 = referral.count;
+        let mut views_u: u64 = referral.uniques;
+
+        let mut change_a: i64 = 0;
+        let mut change_u: i64 = 0;
+
+        if let Some(previous) = previous_entry {
+            let old_views_a = previous.views_a;
+            let old_views_u = previous.views_u;
+
+            let (min_a, max_a) = (&views_a.min(old_views_a), &views_a.max(old_views_a));
+            let (min_u, max_u) = (&views_u.min(old_views_u), &views_u.max(old_views_u));
+
+            views_a = max_a - min_a;
+            views_u = max_u - min_u;
+
+            if views_a == 0 {
+                discard_entry = true;
+            }
+
+            change_a = views_a as i64 - old_views_a as i64;
+            change_u = views_u as i64 - old_views_u as i64;
+        }
+
+        if discard_entry {
+            continue;
+        }
+
+        let paststamp: u64 = previous_entry.map_or(0, |e| e.timestamp);
+        let pastdelta: u64 = timestamp - paststamp;
+
+        let timeline_entry = TimelineEntry {
+            timestamp,
+            paststamp,
+            pastdelta,
+            views_u,
+            views_a,
+            change_a,
+            change_u,
+        };
+
+        timeline.metric_timeline.insert(timestamp, timeline_entry);
+        timeline.latest_entry_timestamp = timestamp;
+
+        timeline.metrics_total.all = timeline.metrics_total.all.max(views_a);
+        timeline.metrics_total.unique = timeline.metrics_total.unique.max(views_u);
+    }
+
+    for content_traffic in &new_data.content_traffic {
+        let traffic_path = &content_traffic.path;
+
+        let timeline = report
+            .timelines_content_traffic
+            .entry(traffic_path.clone())
+            .or_insert(Timeline {
+                metrics_total: Metric { all: 0, unique: 0 },
+                latest_entry_timestamp: timestamp,
+                metric_timeline: Map::new(),
+            });
+
+        let previous_entry = timeline
+            .metric_timeline
+            .get(&timeline.latest_entry_timestamp);
+
+        let mut discard_entry: bool = false;
+
+        let mut views_a: u64 = content_traffic.count;
+        let mut views_u: u64 = content_traffic.uniques;
+
+        let mut change_a: i64 = 0;
+        let mut change_u: i64 = 0;
+
+        if let Some(previous) = previous_entry {
+            let old_views_a = previous.views_a;
+            let old_views_u = previous.views_u;
+
+            let (min_a, max_a) = (&views_a.min(old_views_a), &views_a.max(old_views_a));
+            let (min_u, max_u) = (&views_u.min(old_views_u), &views_u.max(old_views_u));
+
+            views_a = max_a - min_a;
+            views_u = max_u - min_u;
+
+            if views_a == 0 {
+                discard_entry = true;
+            }
+
+            change_a = views_a as i64 - old_views_a as i64;
+            change_u = views_u as i64 - old_views_u as i64;
+        }
+
+        if discard_entry {
+            continue;
+        }
+
+        let paststamp: u64 = previous_entry.map_or(0, |e| e.timestamp);
+        let pastdelta: u64 = timestamp - paststamp;
+
+        let timeline_entry = TimelineEntry {
+            timestamp,
+            paststamp,
+            pastdelta,
+            views_u,
+            views_a,
+            change_a,
+            change_u,
+        };
+
+        timeline.metric_timeline.insert(timestamp, timeline_entry);
+        timeline.latest_entry_timestamp = timestamp;
+
+        timeline.metrics_total.all = timeline.metrics_total.all.max(views_a);
+        timeline.metrics_total.unique = timeline.metrics_total.unique.max(views_u);
+    }
+
+    // Update weekly view metrics.
+    for week in &new_data.biweekly_v.views {
+        let timestamp = &week.timestamp;
+
+        let entry = report
+            .weekly
+            .entry(timestamp.clone())
+            .or_insert(ViewCloneMetric {
+                views: Metric { all: 0, unique: 0 },
+                clones: Metric { all: 0, unique: 0 },
+            });
+
+        entry.views.all = entry.views.all.max(week.count);
+        entry.views.unique = entry.views.unique.max(week.uniques);
+    }
+
+    // Update weekly clone metrics.
+    for week in &new_data.biweekly_c.clones {
+        let entry = report
+            .weekly
+            .entry(week.timestamp.clone())
+            .or_insert(ViewCloneMetric {
+                views: Metric { all: 0, unique: 0 },
+                clones: Metric { all: 0, unique: 0 },
+            });
+
+        entry.clones.all = entry.clones.all.max(week.count);
+        entry.clones.unique = entry.clones.unique.max(week.uniques);
+    }
+
+    // Update hourly view metrics.
+    for hour in &new_data.daily_v.views {
+        let entry = report
+            .daily
+            .entry(hour.timestamp.clone())
+            .or_insert(ViewCloneMetric {
+                views: Metric { all: 0, unique: 0 },
+                clones: Metric { all: 0, unique: 0 },
+            });
+
+        entry.views.all = entry.views.all.max(hour.count);
+        entry.views.unique = entry.views.unique.max(hour.uniques);
+    }
+
+    // Update hourly clone metrics.
+    for hour in &new_data.daily_c.clones {
+        let entry = report
+            .daily
+            .entry(hour.timestamp.clone())
+            .or_insert(ViewCloneMetric {
+                views: Metric { all: 0, unique: 0 },
+                clones: Metric { all: 0, unique: 0 },
+            });
+
+        entry.clones.all = entry.clones.all.max(hour.count);
+        entry.clones.unique = entry.clones.unique.max(hour.uniques);
+    }
+
+    // Deal with updating the view count.
+    let views_a = new_data.daily_v.count + new_data.biweekly_v.count;
+    let views_u = new_data.daily_v.uniques + new_data.biweekly_v.uniques;
+
+    report.total.views.all = report.total.views.all.max(views_a);
+    report.total.views.unique = report.total.views.unique.max(views_u);
+
+    // Deal with updating the clone count.
+    let clones_a = new_data.daily_c.count + new_data.biweekly_c.count;
+    let clones_u = new_data.daily_c.uniques + new_data.biweekly_c.uniques;
+
+    report.total.clones.all = report.total.clones.all.max(clones_a);
+    report.total.clones.unique = report.total.clones.unique.max(clones_u);
+
+    // Count total referrals from different referrers.
+    report.referrals = report.timelines_referrals.iter().fold(
+        Metric { all: 0, unique: 0 },
+        |acc, (_, timeline)| Metric {
+            all: acc.all + timeline.metrics_total.all,
+            unique: acc.unique + timeline.metrics_total.unique,
+        },
+    );
+
+    // Count total visits to different content paths.
+    report.content = report.timelines_content_traffic.iter().fold(
+        Metric { all: 0, unique: 0 },
+        |acc, (_, timeline)| Metric {
+            all: acc.all + timeline.metrics_total.all,
+            unique: acc.unique + timeline.metrics_total.unique,
+        },
+    );
+
+    // Count the number of unique traffic paths and referrering websites.
+    report.traffic_paths = report.timelines_content_traffic.len() as u64;
+    report.referrers = report.timelines_referrals.len() as u64;
+
+    Ok(report)
 }
 
 pub fn generate_new_report(report_data: ReportData) -> Report {
@@ -107,14 +344,18 @@ pub fn generate_new_report(report_data: ReportData) -> Report {
         let timeline = report
             .timelines_referrals
             .entry(referrer_domain)
-            .or_insert_with(|| Timeline::default() );
+            .or_insert(Timeline {
+                metrics_total: Metric { all: 0, unique: 0 },
+                latest_entry_timestamp: unix_timestamp,
+                metric_timeline: Map::<TimestampUnix, TimelineEntry>::new(),
+            });
 
         let timeline_entry = TimelineEntry {
             timestamp: unix_timestamp,
             paststamp: unix_timestamp,
             pastdelta: 0,
-            views_a: new_referrals,
             views_u: unique_referrals,
+            views_a: new_referrals,
             change_a: 0,
             change_u: 0,
         };

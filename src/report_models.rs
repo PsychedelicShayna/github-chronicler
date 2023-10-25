@@ -173,6 +173,8 @@ pub struct JsonReportModel {
     pub weekly_content_visits: HashMap<String, QuantifiableEvents>,
 }
 
+
+
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Report {
     pub total: ViewCloneMetric,
