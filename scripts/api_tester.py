@@ -116,6 +116,10 @@ if __name__ == "__main__":
         "traffic/clones?per=day",
         "traffic/popular/paths",
         "traffic/popular/referrers",
+        "stargazers",
+        "subscribers",
+        "forks",
+        "events"
     ]
 
     print("Select an endpoint..\n")
