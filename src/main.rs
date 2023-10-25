@@ -36,17 +36,21 @@ macro_rules! typedef {
 
 mod api;
 mod api_models;
+mod crypto;
 mod report;
-mod report_models;
-mod reporter;
 mod timecalc;
+mod watcher;
 
 use api::*;
-use reporter::*;
+use api_models::*;
+use report::*;
 
 use anyhow as ah;
-
 use std::io::Read;
+
+const HELP_TEXT: &str = "
+\\ Hello World
+\\ Test";
 
 const AUTH_FILE: &str = "./auth.secret";
 
@@ -60,24 +64,31 @@ fn read_token(file: String) -> ah::Result<AuthToken> {
 }
 
 fn main() -> ah::Result<()> {
+    for (carg, narg) in std::env::args().zip(std::env::args().skip(1)) {
+        match (&carg.as_str(), &narg.as_str()) {
+            (&"--help" | &"-h", _) => {
+                println!("{}", HELP_TEXT);
+            }
+
+            (_, _) => return Ok(()),
+        }
+    }
+
     let auth_token = read_token(AUTH_FILE.into())?;
 
     let author: String = "PsychedelicShayna".into();
-    let repo: String = "cursor-locker".into();
+    let repository: String = "cursor-locker".into();
 
-    let report_data = request_report_data(&auth_token, &author, &repo)?;
-    let file_path: String = format!("{}.{}.report.json", author, repo);
+    // let report = RepositoryReport::request_new(&auth_token, &author, &repository)?;
 
-    if !std::path::Path::new(file_path.as_str()).exists() {
-        let new_report = generate_new_report(report_data);
-        save_report_file(new_report, &file_path)?;
-        return Ok(());
+    let d = request_stargazers(&auth_token, &author, &repository)?;
+    for s in d {
+        println!("{:?}", s.login);
     }
 
-    let old_report = load_report_file(&file_path)?;
-    let updated_report = update_existing_report(old_report.clone(), &report_data)?;
-
-    save_report_file(updated_report, &file_path)?;
+    // report.save_json_file("./report.json");
+    // let loaded_report = RepositoryReport::load_json_file("./report.json")?;
+    // loaded_report.save_json_file("./report2.json");
 
     Ok(())
 }
