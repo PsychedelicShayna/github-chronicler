@@ -78,7 +78,39 @@ typedef!(pub, EndpointURL, String);
 typedef!(pub, EndpointTemplate, String);
 typedef!(pub, URL, String);
 
-fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> ah::Result<T> {
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ApiDataReport {
+    pub biweekly_views_model: ModelRepoViewsBiWeekly,
+    pub biweekly_clones_model: ModelRepoClonesBiWeekly,
+    pub daily_views_model: ModelRepoViewsDaily,
+    pub daily_clones_model: ModelRepoClonesDaily,
+    pub biweekly_referrals_model: ModelReferrerals,
+    pub biweekly_content_visits_model: ModelContentTrafficBiWeekly,
+}
+impl ApiDataReport {
+    pub fn request(token: &AuthToken, author: &String, repository: &String) -> ah::Result<Self> {
+        let biweekly_views_model = request_views_weekly(token, author, repository)?;
+        let biweekly_clones_model = request_clones_weekly(token, author, repository)?;
+
+        let daily_views_model = request_views_daily(token, author, repository)?;
+        let daily_clones_model = request_clones_daily(token, author, repository)?;
+
+        let biweekly_referrals_model = request_referrers_weekly(token, author, repository)?;
+        let biweekly_content_visits_model =
+            request_popular_paths_weekly(token, author, repository)?;
+
+        Ok(ApiDataReport {
+            biweekly_views_model,
+            biweekly_clones_model,
+            daily_views_model,
+            daily_clones_model,
+            biweekly_referrals_model,
+            biweekly_content_visits_model,
+        })
+    }
+}
+
+pub fn attempt_api_request<T: DeserializeOwned>(token: &AuthToken, url: &String) -> ah::Result<T> {
     let request = get(url)
         .with_header("User-Agent", "PsychedelicShayna")
         .with_header("Accept", "application/vnd.github+json")
