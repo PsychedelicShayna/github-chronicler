@@ -39,7 +39,7 @@ mod api_models;
 mod crypto;
 mod report;
 mod timecalc;
-mod watcher;
+// mod watcher;
 
 use api::*;
 use api_models::*;
@@ -101,7 +101,6 @@ fn main() -> ah::Result<()> {
     if test {
         experimentation()?;
     }
-
 
     Ok(())
 }
