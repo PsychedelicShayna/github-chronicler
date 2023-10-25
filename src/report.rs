@@ -18,7 +18,7 @@ type ContentPath = String;
 type DatestampUtc = String;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct RepositoryTrafficChronicle {
+pub struct RepositoryReport {
     pub total_views: u64,
     pub total_views_unique: u64,
 
@@ -44,7 +44,7 @@ pub struct RepositoryTrafficChronicle {
     pub weekly_content_visits: HashMap<ContentPath, HashMap<DatestampUtc, QuantifiableEvents>>,
 }
 
-impl RepositoryTrafficChronicle {
+impl RepositoryReport {
     pub fn save_json_file(&self, file_path: &str) -> ah::Result<()> {
         let file = std::fs::File::create(file_path)?;
         Ok(serde_json::to_writer(file, self)?)
@@ -61,7 +61,7 @@ impl RepositoryTrafficChronicle {
         repository: &String,
     ) -> ah::Result<Self> {
         let api_data_report = ApiDataReport::request(token, author, repository)?;
-        RepositoryTrafficChronicle::new(&api_data_report)
+        RepositoryReport::new(&api_data_report)
     }
 
     pub fn request_update(
@@ -404,7 +404,7 @@ impl RepositoryTrafficChronicle {
             total_content_visits_unique += new_content_visit.uniques;
         }
 
-        return Ok(RepositoryTrafficChronicle {
+        return Ok(RepositoryReport {
             total_views: all_time_views,
             total_views_unique: all_time_views_unique,
             total_clones: all_time_clones,
