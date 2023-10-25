@@ -63,17 +63,7 @@ fn read_token(file: String) -> ah::Result<AuthToken> {
     Ok(AuthToken(str.trim().to_string()))
 }
 
-fn main() -> ah::Result<()> {
-    for (carg, narg) in std::env::args().zip(std::env::args().skip(1)) {
-        match (&carg.as_str(), &narg.as_str()) {
-            (&"--help" | &"-h", _) => {
-                println!("{}", HELP_TEXT);
-            }
-
-            (_, _) => return Ok(()),
-        }
-    }
-
+pub fn experimentation() -> ah::Result<()> {
     let auth_token = read_token(AUTH_FILE.into())?;
 
     let author: String = "PsychedelicShayna".into();
@@ -82,6 +72,7 @@ fn main() -> ah::Result<()> {
     // let report = RepositoryReport::request_new(&auth_token, &author, &repository)?;
 
     let d = request_stargazers(&auth_token, &author, &repository)?;
+
     for s in d {
         println!("{:?}", s.login);
     }
@@ -89,6 +80,28 @@ fn main() -> ah::Result<()> {
     // report.save_json_file("./report.json");
     // let loaded_report = RepositoryReport::load_json_file("./report.json")?;
     // loaded_report.save_json_file("./report2.json");
+    Ok(())
+}
+
+fn main() -> ah::Result<()> {
+    let mut test: bool = false;
+
+    for (carg, narg) in std::env::args().zip(std::env::args().skip(1)) {
+        match (&carg.as_str(), &narg.as_str()) {
+            (&"--help" | &"-h", _) => {
+                println!("{}", HELP_TEXT);
+            }
+
+            (&"--test" | &"-t", _) => test = true,
+
+            _ => {}
+        }
+    }
+
+    if test {
+        experimentation()?;
+    }
+
 
     Ok(())
 }
